@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36414.22 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server", "Server\Server.csproj", "{6CD469C6-B499-46AC-96FC-10A4A9895B02}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PomocneKlase", "..\PomocneKlase\PomocneKlase.csproj", "{4A862DC3-45C1-4F88-8EC5-643D6385EE71}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "..\Client\Client.csproj", "{4D446554-09BB-4574-8D35-D45DDED2962D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6CD469C6-B499-46AC-96FC-10A4A9895B02}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CD469C6-B499-46AC-96FC-10A4A9895B02}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CD469C6-B499-46AC-96FC-10A4A9895B02}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CD469C6-B499-46AC-96FC-10A4A9895B02}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A862DC3-45C1-4F88-8EC5-643D6385EE71}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A862DC3-45C1-4F88-8EC5-643D6385EE71}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A862DC3-45C1-4F88-8EC5-643D6385EE71}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A862DC3-45C1-4F88-8EC5-643D6385EE71}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4D446554-09BB-4574-8D35-D45DDED2962D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4D446554-09BB-4574-8D35-D45DDED2962D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4D446554-09BB-4574-8D35-D45DDED2962D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4D446554-09BB-4574-8D35-D45DDED2962D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3D880C4E-A472-48FE-9073-0C935E711893}
+	EndGlobalSection
+EndGlobal
