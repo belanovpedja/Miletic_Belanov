@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 
 namespace Server
 {
-    internal class Program
+    internal class Server
     {
         static void Main(string[] args)
         {
+            Console.WriteLine("aaa");
         }
     }
 }
