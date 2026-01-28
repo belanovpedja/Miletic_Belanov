@@ -8,11 +8,14 @@
 
         public double Cena { get; set; }
 
-        public Parking(int brojMesta, int brojZauzetih, double cena)
+        public double Zarada { get; set; }
+
+        public Parking(int brojMesta, int brojZauzetih, double cena, double zarada)
         {
             BrojMesta = brojMesta;
             BrojZauzetih = brojZauzetih;
             Cena = cena;
+            Zarada = zarada;
         }
 
     }

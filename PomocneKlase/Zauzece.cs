@@ -13,6 +13,8 @@ namespace PomocneKlase
 
         public List<string> AutoInfo { get; set; }
 
+        public int[] VremeDolaska { get; set; }
+
     }
 }
 

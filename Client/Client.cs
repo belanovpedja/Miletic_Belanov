@@ -121,12 +121,18 @@ namespace Client
                             Console.WriteLine($"Podaci za {i + 1}. auto su poslati.");
                         }
                     }
+
+                    int sat = DateTime.Now.TimeOfDay.Hours;
+                    int minut = DateTime.Now.TimeOfDay.Minutes;
+                    int[] vreme = {sat, minut};
+
                     Zauzece zauzece = new Zauzece
                     {
                         BrParkinga = brParkinga,
                         BrMesta = brMesta,
                         VremeNapustanja = vremeNapustanja,
-                        AutoInfo = listaAutomobila
+                        AutoInfo = listaAutomobila,
+                        VremeDolaska=vreme,
 
                     };
 
@@ -152,7 +158,21 @@ namespace Client
                     byte[] ok = new byte[1024];
                     clientSocket.Receive(ok);
                     Console.WriteLine($"{Encoding.UTF8.GetString(ok)}");
-                    clientSocket.Send(Encoding.UTF8.GetBytes(Console.ReadLine()));
+                    while(true)
+                    {
+                        string kk = Console.ReadLine();
+                        if (kk == "OK" || kk == "ok")
+                        {
+                            clientSocket.Send(Encoding.UTF8.GetBytes(kk));
+                            break;
+                        }
+                        else
+                            Console.WriteLine("Moras potvrditi! sa ok/OK!");
+                       
+                       
+                    }
+                   
+
 
 
                 }

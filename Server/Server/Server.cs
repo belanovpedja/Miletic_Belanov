@@ -48,7 +48,7 @@ namespace Server
                     Console.WriteLine("Unesi cenu po satu: ");
                     double c = int.Parse(Console.ReadLine());
 
-                    Parking parking = new Parking(brM, brZ, c);
+                    Parking parking = new Parking(brM, brZ, c,0);
                     recnikParkinga.Add(brP, parking);
 
                     Console.WriteLine($"\nUneli ste parking sa brojem: {brP}. \n");
@@ -249,7 +249,17 @@ namespace Server
                             double cena = 0;
                             //racunam racun i saljem klijentu da on potvrdi
                             recnik_zauzeca.TryGetValue(izlazniID, out Zauzece zauzece);
-                            int zapocetihSati = 1;
+
+                            string[] vreme = zauzece.VremeNapustanja.Split(':');
+                            int satKlijenta = int.Parse(vreme[0]);
+                            int minutKlijenta = int.Parse(vreme[1]);
+                            int ukMinuta = (satKlijenta - zauzece.VremeDolaska[0]) * 60 + (minutKlijenta - zauzece.VremeDolaska[1]);
+
+                            int zapocetihSati = 0;
+                            if (ukMinuta % 60 != 0)
+                                zapocetihSati = 1;
+                            zapocetihSati += ukMinuta / 60;
+
 
                             foreach (var x in recnikParkinga)
                             {
@@ -260,14 +270,17 @@ namespace Server
                                 }
 
                             }
-                            byte[] ok = new byte[1024];
-                            acceptedSocket.Send(Encoding.UTF8.GetBytes($"CENA: {cena} din. unesi OK ako potvrdjujes izlaz. "));
-                            acceptedSocket.Receive(ok);
+                           
+                                byte[] ok = new byte[1024];
+                                acceptedSocket.Send(Encoding.UTF8.GetBytes($"CENA: {cena} din. unesi OK ako potvrdjujes izlaz. "));
+                                acceptedSocket.Receive(ok);
 
-                            string k = Encoding.UTF8.GetString(ok);
-                            Console.WriteLine(k);
-                            k.ToLower();
-                            if (k.Contains("ok") == true)
+                                string k = Encoding.UTF8.GetString(ok);
+                                Console.WriteLine(k);
+                                k.ToLower();
+                           
+
+                            if (k.Contains("ok") == true || k.Contains("OK") == true)
                             {
 
 
@@ -284,6 +297,8 @@ namespace Server
                                 {
                                     if (x.Key == zauzece.BrParkinga)
                                     {
+                                        x.Value.Zarada += cena;
+
                                         x.Value.BrojZauzetih -= zauzece.BrMesta;
                                         Console.WriteLine($"Na parkingu broj {x.Key} sada ima {x.Value.BrojZauzetih} od {x.Value.BrojMesta} mesta");
                                         break;
@@ -318,6 +333,11 @@ namespace Server
                     break;
                 }
 
+            }
+
+            foreach(var x in recnikParkinga)
+            {
+                Console.WriteLine($"Zarada dispecera na parkingu br. {x.Key} je {x.Value.Zarada} din.");
             }
 
             Console.WriteLine("Server zavrsava sa radom");
