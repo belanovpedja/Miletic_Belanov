@@ -13,6 +13,7 @@ namespace Client
     {
         static void Main(string[] args)
         {
+            Console.ReadKey();
             //Loopback je lokalna adr, tj. sam sebi, a meni treba adesa SERVERA tj a server je nasa lokalna loopback ustvari, moze ipconfig i da stavim za moju bas
             string adresaTCP = string.Empty;
             int portTCP = 0;
