@@ -20,6 +20,8 @@ namespace Server
             string a;
             Dictionary<int, Parking> recnikParkinga = new Dictionary<int, Parking>();
             Dictionary<string, Zauzece> recnik_zauzeca = new Dictionary<string, Zauzece>();
+            List<Socket> acceptedSockets = new List<Socket>();
+
 
             #region UnosParkinga
 
@@ -49,120 +51,120 @@ namespace Server
             while (a.ToLower() == "da");
             #endregion
 
-            #region  UDP 
 
+            #region Inicijalzacija Komunikacije
 
             Socket UdpServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             IPEndPoint ServerEP = new IPEndPoint(IPAddress.Loopback, 15000);
             UdpServerSocket.Bind(ServerEP);
+            UdpServerSocket.Blocking = false;
 
             Socket serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-
             IPEndPoint serverEP = new IPEndPoint(IPAddress.Any, 20000);
-
             serverSocket.Bind(serverEP);
-
-            serverSocket.Listen(10);
-
-
+            serverSocket.Blocking = false;
+            serverSocket.Listen(100);
             Console.WriteLine($"Server parkinga je pokrenut!");
+            #endregion
 
-          
 
-            EndPoint clientEndPoint = new IPEndPoint(IPAddress.None, 0);
-            byte[] recBuffer = new byte[1024];
+
+
             while (true)
             {
-                try
+                if (UdpServerSocket.Poll(2000 * 1000, SelectMode.SelectRead))
                 {
-                    int bytesReceived = UdpServerSocket.ReceiveFrom(recBuffer, ref clientEndPoint);
-
-                    string zahtev = Encoding.UTF8.GetString(recBuffer);
-                    Console.WriteLine($"{zahtev}");
-
-                    string hostName = Dns.GetHostName();
-                    IPAddress[] addresses = Dns.GetHostAddresses(hostName);
-                    IPAddress selectedAddress = null;
-
-                    foreach (var address in addresses)
-                    {
-                        if (address.AddressFamily == AddressFamily.InterNetwork)
-                        {
-                            selectedAddress = address;
-                            break;
-                        }
-                    }
-
-                    if (selectedAddress == null)
-                    {
-                        Console.WriteLine("IPv4 adresa nije pronađena. Proverite mrežne postavke.");
-                        return;
-                    }
-                    // A moze i selectedAddress=loopback ?? ili koju vec adresu hocu za tcp tj adresu racunara
-
-                    int port = 20000;
-                    string TCPpodaci = ($"{selectedAddress} {port}");
-
-
-                    byte[] TCPpodaciUBajtima = Encoding.UTF8.GetBytes(TCPpodaci);
-                    UdpServerSocket.SendTo(TCPpodaciUBajtima, clientEndPoint);
-
-                }
-                catch (SocketException ex)
-                {
-                    Console.WriteLine($"Socket greška: {ex.Message}");
-                }
-                #endregion
-
-                #region TCP
-               
-
-                Socket acceptedSocket = serverSocket.Accept();
-                  byte[] buffer = new byte[4096];
-
-                BinaryFormatter formatter = new BinaryFormatter();
-
-                IPEndPoint clientEP = acceptedSocket.RemoteEndPoint as IPEndPoint;
-
-
-              
-
-
-                foreach (var pair in recnikParkinga)
-                {
-                    string parkingInfo = ($"Parking sa brojem {pair.Key} ima:\n " +
-                                          $"{pair.Value.BrojZauzetih}/{pair.Value.BrojMesta} (zauzeta mesta/ukupno mesta)");
-
-                    acceptedSocket.Send(Encoding.UTF8.GetBytes(parkingInfo));
-                }
-
-                while (true)
-                {
+                    #region  UDP 
                     try
                     {
+                        EndPoint clientEndPoint = new IPEndPoint(IPAddress.None, 0);
+                        byte[] recBuffer = new byte[1024];
 
-                        /*
-                                 if (acceptedSocket.Poll(1000 * 1000, SelectMode.SelectWrite))
-                                 {
-                        foreach (var pair in recnikParkinga)
-                           {
-                               string parkingInfo = ($"Parking sa brojem {pair.Key} ima:\n " +
-                                                     $"{pair.Value.BrojZauzetih}/{pair.Value.BrojMesta} (zauzeta mesta/ukupno mesta)");
+                        int bytesReceived = UdpServerSocket.ReceiveFrom(recBuffer, ref clientEndPoint);
 
-                               acceptedSocket.Send(Encoding.UTF8.GetBytes(parkingInfo));
-                           }
+                        string zahtev = Encoding.UTF8.GetString(recBuffer);
+                        Console.WriteLine($"{zahtev}");
 
-                     }
-                     else
-                                 {
-                                     Console.WriteLine("Cekam da posaljem podatke o parkingu...");
-                                 }
+                        string hostName = Dns.GetHostName();
+                        IPAddress[] addresses = Dns.GetHostAddresses(hostName);
+                        IPAddress selectedAddress = null;
 
-                          */
-
-                        if (acceptedSocket.Poll(1000 * 1000, SelectMode.SelectRead))
+                        foreach (var address in addresses)
                         {
-                            int brBajta = acceptedSocket.Receive(buffer);
+                            if (address.AddressFamily == AddressFamily.InterNetwork)
+                            {
+                                selectedAddress = address;
+                                break;
+                            }
+                        }
+
+                        if (selectedAddress == null)
+                        {
+                            Console.WriteLine("IPv4 adresa nije pronađena. Proverite mrežne postavke.");
+                            return;
+                        }
+                        // A moze i selectedAddress=loopback ?? ili koju vec adresu hocu za tcp tj adresu racunara
+
+                        int port = 20000;
+                        string TCPpodaci = ($"{selectedAddress} {port}");
+
+
+                        byte[] TCPpodaciUBajtima = Encoding.UTF8.GetBytes(TCPpodaci);
+                        UdpServerSocket.SendTo(TCPpodaciUBajtima, clientEndPoint);
+
+                    }
+                    catch (SocketException ex)
+                    {
+                        Console.WriteLine($"Socket greška: {ex.Message}");
+                    }
+                    #endregion
+                }
+
+                #region TCP
+
+                if (serverSocket.Poll(2000 * 1000, SelectMode.SelectRead))
+                {
+                    Socket acceptedSocket = serverSocket.Accept();
+                    IPEndPoint clientEP = acceptedSocket.RemoteEndPoint as IPEndPoint;
+                    acceptedSockets.Add(acceptedSocket);
+                }
+                if (acceptedSockets.Count < 1)
+                {
+                    continue;
+                }
+
+                foreach (Socket acceptedSocket in acceptedSockets)
+                {
+                    acceptedSocket.Blocking = true;
+                }
+
+                byte[] buffer = new byte[4096];
+                BinaryFormatter formatter = new BinaryFormatter();
+
+
+
+
+
+
+                try
+                {
+                    for (int i = 0; i < acceptedSockets.Count; i++)
+                    {
+                        //  if (acceptedSockets[i].Poll(1500 * 1000, SelectMode.SelectWrite))
+                        {
+
+                            foreach (var pair in recnikParkinga)
+                            {
+                                string parkingInfo = ($"Parking sa brojem {pair.Key} ima:\n " +
+                                                      $"{pair.Value.BrojZauzetih}/{pair.Value.BrojMesta} (zauzeta mesta/ukupno mesta)");
+
+                                acceptedSockets[i].Send(Encoding.UTF8.GetBytes(parkingInfo));
+                            }
+
+
+
+
+                            int brBajta = acceptedSockets[i].Receive(buffer);
                             if (brBajta == 0) break;
 
                             using (MemoryStream ms = new MemoryStream(buffer, 0, brBajta))
@@ -188,7 +190,7 @@ namespace Server
                                         if (x.Key == zauzece.BrParkinga)
                                         {
                                             if (x.Value.BrojZauzetih == x.Value.BrojMesta)
-                                            { acceptedSocket.Send(Encoding.UTF8.GetBytes("Sva mesta su zauzeta!")); }
+                                            { acceptedSockets[i].Send(Encoding.UTF8.GetBytes("Sva mesta su zauzeta!")); }
                                             else
                                             {
                                                 int temp1 = x.Value.BrojZauzetih;
@@ -210,7 +212,7 @@ namespace Server
                                                 }
 
                                                 recnik_zauzeca.Add(id.ToString(), zauzece); // sacuvam objekat u listu zauzeca sa izmenama posle kontrole
-                                                acceptedSocket.Send(Encoding.UTF8.GetBytes($"Zauzeto je {temp1} od {zauzece.BrMesta} trazenih mesta i vas ID racuna je: {id.ToString()}"));
+                                                acceptedSockets[i].Send(Encoding.UTF8.GetBytes($"Zauzeto je {temp1} od {zauzece.BrMesta} trazenih mesta i vas ID racuna je: {id.ToString()}"));
 
                                             }
                                             break; //da ne ide dalje jer je nasao taj po id
@@ -221,7 +223,7 @@ namespace Server
                                 }
                                 else
                                 {
-                                    acceptedSocket.Send(Encoding.UTF8.GetBytes("Uneli ste nevalidan zahtev!"));
+                                    acceptedSockets[i].Send(Encoding.UTF8.GetBytes("Uneli ste nevalidan zahtev!"));
 
                                 }
 
@@ -234,7 +236,7 @@ namespace Server
                             #region IZLAZ SA PARKINGA 
                             // treba da prmim poruku s aklijenta od ID
                             byte[] IDbuffer = new byte[4024];
-                            acceptedSocket.Receive(IDbuffer);
+                            acceptedSockets[i].Receive(IDbuffer);
 
                             string izlazniID = Encoding.UTF8.GetString(IDbuffer);
 
@@ -275,8 +277,8 @@ namespace Server
                                 }
 
                                 byte[] ok = new byte[1024];
-                                acceptedSocket.Send(Encoding.UTF8.GetBytes($"CENA: {cena} din. unesi OK ako potvrdjujes izlaz. "));
-                                acceptedSocket.Receive(ok);
+                                acceptedSockets[i].Send(Encoding.UTF8.GetBytes($"CENA: {cena} din. unesi OK ako potvrdjujes izlaz. "));
+                                acceptedSockets[i].Receive(ok);
 
                                 string k = Encoding.UTF8.GetString(ok);
                                 Console.WriteLine(k);
@@ -324,37 +326,35 @@ namespace Server
                             #endregion
 
 
-                        }
-                        else
-                        {
-                            Console.WriteLine("Cekam zahtev...");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Došlo je do greške, pri prenosu podataka: {ex.Message}");
-                        break;
-                    }
 
+
+
+                            Console.WriteLine("Unesi kraj za gasenje Dispecera.");
+                            if (Console.ReadLine() == "kraj")
+                            {
+                                foreach (var x in recnikParkinga)
+                                {
+                                    Console.WriteLine($"Zarada dispecera na parkingu br. {x.Key} je {x.Value.Zarada} din.");
+                                }
+
+                                Console.WriteLine("Server zavrsava sa radom");
+                                UdpServerSocket.Close();
+                                serverSocket.Close();
+                                Console.ReadKey();
+                            }
+
+                            acceptedSockets.Remove(acceptedSockets[i]);
+                            acceptedSockets[i].Close();
+                            Console.ReadKey();
+
+                        }
+                    }
                 }
-
-                Console.WriteLine("Unesi kraj za gasenje Dispecera.");
-                if (Console.ReadLine() == "kraj")
+                catch (Exception ex)
                 {
-                    foreach (var x in recnikParkinga)
-                    {
-                        Console.WriteLine($"Zarada dispecera na parkingu br. {x.Key} je {x.Value.Zarada} din.");
-                    }
-
-                    Console.WriteLine("Server zavrsava sa radom");
-                    UdpServerSocket.Close();
-                    serverSocket.Close();
-                    Console.ReadKey();
+                    Console.WriteLine($"Došlo je do greške, u TCP delu za accepted soket: {ex.Message}");
+                    break;
                 }
-
-                acceptedSocket.Close();
-                Console.ReadKey();
-
 
                 #endregion
 
