@@ -16,7 +16,7 @@ namespace Server
 
         static void Main(string[] args)
         {
-
+            int off = 0;
             string a;
             Dictionary<int, Parking> recnikParkinga = new Dictionary<int, Parking>();
             Dictionary<string, Zauzece> recnik_zauzeca = new Dictionary<string, Zauzece>();
@@ -126,167 +126,96 @@ namespace Server
                 {
                     Socket acceptedSocket = serverSocket.Accept();
                     IPEndPoint clientEP = acceptedSocket.RemoteEndPoint as IPEndPoint;
-                    acceptedSockets.Add(acceptedSocket);
+                    if (acceptedSockets.Contains(acceptedSocket) == false)
+                    {
+                        acceptedSockets.Add(acceptedSocket);
+
+                        foreach (var pair in recnikParkinga)
+                        {
+                            string parkingInfo = ($"Parking sa brojem {pair.Key} ima:\n " +
+                                                  $"{pair.Value.BrojZauzetih}/{pair.Value.BrojMesta} (zauzeta mesta/ukupno mesta)");
+
+                            acceptedSocket.Send(Encoding.UTF8.GetBytes(parkingInfo));
+                        }
+
+                    }
+
                 }
                 if (acceptedSockets.Count < 1)
                 {
+                    Console.WriteLine("Cekam auto...");
+
                     continue;
                 }
 
                 foreach (Socket acceptedSocket in acceptedSockets)
                 {
-                    acceptedSocket.Blocking = true;
+                    acceptedSocket.Blocking = false;
                 }
 
-                byte[] buffer = new byte[4096];
-                BinaryFormatter formatter = new BinaryFormatter();
 
 
 
 
 
 
+                //mislim da ide bez jos jednog while-a ovde jer nije igra sa 2 igraca da se konektuju, nego uvek proverava dal je doso novi auto
                 try
                 {
                     for (int i = 0; i < acceptedSockets.Count; i++)
                     {
-                        //  if (acceptedSockets[i].Poll(1500 * 1000, SelectMode.SelectWrite))
+                        if (acceptedSockets[i].Poll(1500 * 1000, SelectMode.SelectRead))
                         {
 
-                            foreach (var pair in recnikParkinga)
-                            {
-                                string parkingInfo = ($"Parking sa brojem {pair.Key} ima:\n " +
-                                                      $"{pair.Value.BrojZauzetih}/{pair.Value.BrojMesta} (zauzeta mesta/ukupno mesta)");
-
-                                acceptedSockets[i].Send(Encoding.UTF8.GetBytes(parkingInfo));
-                            }
 
 
+                            #region IZLAZ SA PARKINGA 
+                            // treba da prmim poruku sa klijenta od ID
+                            // byte[] IDbuffer = new byte[4024];
 
-
+                            byte[] buffer = new byte[4096];
                             int brBajta = acceptedSockets[i].Receive(buffer);
-                            if (brBajta == 0) break;
+                            if (brBajta == 0)
+                                break;
+                            string izlazniID = Encoding.UTF8.GetString(buffer);
 
-                            using (MemoryStream ms = new MemoryStream(buffer, 0, brBajta))
+                            Match match = Regex.Match(izlazniID, @"\[(\d+)\]");
+
+                            if (match.Success) //AKO NE RADI OVAKO regex MOGU SA StartsWith [
                             {
-                                Zauzece zauzece = (Zauzece)formatter.Deserialize(ms);
-
-                                Console.WriteLine($"Parking: {zauzece.BrParkinga}., Mesta: {zauzece.BrMesta}, Vreme napustanja: {zauzece.VremeNapustanja}");
-
-                                #region PROVERA ZAHTEVA ZA DODAVANJE NA PARKING
+                                izlazniID = match.Groups[1].Value;
 
 
+                                //brise ID ako postoji  i update podataka u parkingu + racun
 
-                                int sat = DateTime.Now.TimeOfDay.Hours;
-                                int minut = DateTime.Now.TimeOfDay.Minutes;
-                                string[] vreme = zauzece.VremeNapustanja.Split(':');
-                                int satKlijenta = int.Parse(vreme[0]);
-                                int minutKlijenta = int.Parse(vreme[1]);
-
-                                if (recnikParkinga.ContainsKey(zauzece.BrParkinga) == true && ((sat == satKlijenta && minut < minutKlijenta) || (sat < satKlijenta)))
+                                if (recnik_zauzeca.ContainsKey(izlazniID) == true)
                                 {
+                                    double cena = 0;
+                                    //racunam racun i saljem klijentu da on potvrdi
+                                    recnik_zauzeca.TryGetValue(izlazniID, out Zauzece zauzece);
+
+                                    string[] vreme = zauzece.VremeNapustanja.Split(':');
+                                    int satKlijenta = int.Parse(vreme[0]);
+                                    int minutKlijenta = int.Parse(vreme[1]);
+                                    int ukMinuta = (satKlijenta - zauzece.VremeDolaska[0]) * 60 + (minutKlijenta - zauzece.VremeDolaska[1]);
+
+                                    int zapocetihSati = 0;
+                                    if (ukMinuta % 60 != 0)
+                                        zapocetihSati = 1;
+                                    zapocetihSati += ukMinuta / 60;
+
+
                                     foreach (var x in recnikParkinga)
                                     {
                                         if (x.Key == zauzece.BrParkinga)
                                         {
-                                            if (x.Value.BrojZauzetih == x.Value.BrojMesta)
-                                            { acceptedSockets[i].Send(Encoding.UTF8.GetBytes("Sva mesta su zauzeta!")); }
-                                            else
-                                            {
-                                                int temp1 = x.Value.BrojZauzetih;
-
-                                                x.Value.BrojZauzetih += zauzece.BrMesta;   //na parking dodajem jos zauzetih mesta koliko je korisnik trazio
-                                                if (x.Value.BrojZauzetih > x.Value.BrojMesta)//ako sam dodao vise zauzetih nego sto ima uopste mesta na parkingu
-                                                {
-                                                    x.Value.BrojZauzetih = x.Value.BrojMesta;//max zauzetih ce biti koliko ima mesta na parkingu
-                                                }
-                                                temp1 = x.Value.BrojZauzetih - temp1; // a  korisniku saljem za koliko auta je zauzeto mesto
-                                                zauzece.BrMesta = temp1;//azuriram koliko je u zauzecu stvarno uzeto mesta posle kontrole
-
-                                                Random random = new Random();
-                                                int id = random.Next(100, 1000);
-
-                                                while (recnik_zauzeca.ContainsKey(id.ToString()) == true)
-                                                {
-                                                    id = random.Next(100, 1000);
-                                                }
-
-                                                recnik_zauzeca.Add(id.ToString(), zauzece); // sacuvam objekat u listu zauzeca sa izmenama posle kontrole
-                                                acceptedSockets[i].Send(Encoding.UTF8.GetBytes($"Zauzeto je {temp1} od {zauzece.BrMesta} trazenih mesta i vas ID racuna je: {id.ToString()}"));
-
-                                            }
-                                            break; //da ne ide dalje jer je nasao taj po id
-
+                                            cena = (x.Value.Cena) * (zauzece.BrMesta) * (zapocetihSati);
+                                            break;
                                         }
 
                                     }
-                                }
-                                else
-                                {
-                                    acceptedSockets[i].Send(Encoding.UTF8.GetBytes("Uneli ste nevalidan zahtev!"));
-
-                                }
-
-                                #endregion
 
 
-                            }
-
-
-                            #region IZLAZ SA PARKINGA 
-                            // treba da prmim poruku s aklijenta od ID
-                            byte[] IDbuffer = new byte[4024];
-                            acceptedSockets[i].Receive(IDbuffer);
-
-                            string izlazniID = Encoding.UTF8.GetString(IDbuffer);
-
-                            Match match = Regex.Match(izlazniID, @"\[(\d+)\]");
-
-                            if (match.Success)
-                            {
-                                izlazniID = match.Groups[1].Value;
-                            }
-
-                            //brise ID ako postoji  i update podataka u parkingu + racun
-
-                            if (recnik_zauzeca.ContainsKey(izlazniID) == true)
-                            {
-                                double cena = 0;
-                                //racunam racun i saljem klijentu da on potvrdi
-                                recnik_zauzeca.TryGetValue(izlazniID, out Zauzece zauzece);
-
-                                string[] vreme = zauzece.VremeNapustanja.Split(':');
-                                int satKlijenta = int.Parse(vreme[0]);
-                                int minutKlijenta = int.Parse(vreme[1]);
-                                int ukMinuta = (satKlijenta - zauzece.VremeDolaska[0]) * 60 + (minutKlijenta - zauzece.VremeDolaska[1]);
-
-                                int zapocetihSati = 0;
-                                if (ukMinuta % 60 != 0)
-                                    zapocetihSati = 1;
-                                zapocetihSati += ukMinuta / 60;
-
-
-                                foreach (var x in recnikParkinga)
-                                {
-                                    if (x.Key == zauzece.BrParkinga)
-                                    {
-                                        cena = (x.Value.Cena) * (zauzece.BrMesta) * (zapocetihSati);
-                                        break;
-                                    }
-
-                                }
-
-                                byte[] ok = new byte[1024];
-                                acceptedSockets[i].Send(Encoding.UTF8.GetBytes($"CENA: {cena} din. unesi OK ako potvrdjujes izlaz. "));
-                                acceptedSockets[i].Receive(ok);
-
-                                string k = Encoding.UTF8.GetString(ok);
-                                Console.WriteLine(k);
-                                k.ToLower();
-
-
-                                if (k.Contains("ok") == true || k.Contains("OK") == true)
-                                {
 
 
                                     //ispis auto koji napustaju parking
@@ -311,49 +240,130 @@ namespace Server
                                     }
 
                                     recnik_zauzeca.Remove(izlazniID);
+
+                                    byte[] ok = new byte[1024];
+                                    acceptedSockets[i].Send(Encoding.UTF8.GetBytes($"CENA: {cena} din. unesi OK ako potvrdjujes izlaz. "));
+
+                                    #region Zatvaranje Soketa
+                                    Console.WriteLine("Unesi kraj za gasenje Dispecera.");
+                                    if (Console.ReadLine() == "kraj")
+                                    {
+                                        foreach (var x in recnikParkinga)
+                                        {
+                                            Console.WriteLine($"Zarada dispecera na parkingu br. {x.Key} je {x.Value.Zarada} din.");
+                                        }
+
+                                        Console.WriteLine("Server zavrsava sa radom");
+                                        UdpServerSocket.Close();
+                                        serverSocket.Close();
+                                        off++;
+                                        Console.ReadKey();
+                                        break;
+                                    }
+
+                                    acceptedSockets.Remove(acceptedSockets[i]);
+                                    acceptedSockets[i].Close();
+                                     Console.ReadKey();
+
+                                    #endregion
+
                                 }
                                 else
                                 {
-                                    Console.WriteLine("Klijent odbio placanje.");
+                                    Console.WriteLine("Nevalidan ID unesen od klijenta");
                                 }
+
+
+                                #endregion
                             }
+
+
                             else
                             {
-                                Console.WriteLine("Nevalidan ID unesen od klijenta");
-                            }
-
-
-                            #endregion
+                                BinaryFormatter formatter = new BinaryFormatter();
 
 
 
-
-
-                            Console.WriteLine("Unesi kraj za gasenje Dispecera.");
-                            if (Console.ReadLine() == "kraj")
-                            {
-                                foreach (var x in recnikParkinga)
+                                using (MemoryStream ms = new MemoryStream(buffer, 0, brBajta))
                                 {
-                                    Console.WriteLine($"Zarada dispecera na parkingu br. {x.Key} je {x.Value.Zarada} din.");
-                                }
+                                    Zauzece zauzece = (Zauzece)formatter.Deserialize(ms);
 
-                                Console.WriteLine("Server zavrsava sa radom");
-                                UdpServerSocket.Close();
-                                serverSocket.Close();
-                                Console.ReadKey();
+                                    Console.WriteLine($"Parking: {zauzece.BrParkinga}., Mesta: {zauzece.BrMesta}, Vreme napustanja: {zauzece.VremeNapustanja}");
+
+                                    #region PROVERA ZAHTEVA ZA DODAVANJE NA PARKING
+
+
+
+                                    int sat = DateTime.Now.TimeOfDay.Hours;
+                                    int minut = DateTime.Now.TimeOfDay.Minutes;
+                                    string[] vreme = zauzece.VremeNapustanja.Split(':');
+                                    int satKlijenta = int.Parse(vreme[0]);
+                                    int minutKlijenta = int.Parse(vreme[1]);
+
+                                    if (recnikParkinga.ContainsKey(zauzece.BrParkinga) == true && ((sat == satKlijenta && minut < minutKlijenta) || (sat < satKlijenta)))
+                                    {
+                                        foreach (var x in recnikParkinga)
+                                        {
+                                            if (x.Key == zauzece.BrParkinga)
+                                            {
+                                                if (x.Value.BrojZauzetih == x.Value.BrojMesta)
+                                                { acceptedSockets[i].Send(Encoding.UTF8.GetBytes("Sva mesta su zauzeta!")); }
+                                                else
+                                                {
+                                                    int temp1 = x.Value.BrojZauzetih;
+
+                                                    x.Value.BrojZauzetih += zauzece.BrMesta;   //na parking dodajem jos zauzetih mesta koliko je korisnik trazio
+                                                    if (x.Value.BrojZauzetih > x.Value.BrojMesta)//ako sam dodao vise zauzetih nego sto ima uopste mesta na parkingu
+                                                    {
+                                                        x.Value.BrojZauzetih = x.Value.BrojMesta;//max zauzetih ce biti koliko ima mesta na parkingu
+                                                    }
+                                                    temp1 = x.Value.BrojZauzetih - temp1; // a  korisniku saljem za koliko auta je zauzeto mesto
+                                                    zauzece.BrMesta = temp1;//azuriram koliko je u zauzecu stvarno uzeto mesta posle kontrole
+
+                                                    Random random = new Random();
+                                                    int id = random.Next(100, 1000);
+
+                                                    while (recnik_zauzeca.ContainsKey(id.ToString()) == true)
+                                                    {
+                                                        id = random.Next(100, 1000);
+                                                    }
+
+                                                    recnik_zauzeca.Add(id.ToString(), zauzece); // sacuvam objekat u listu zauzeca sa izmenama posle kontrole
+                                                    acceptedSockets[i].Send(Encoding.UTF8.GetBytes($"Zauzeto je {temp1} od {zauzece.BrMesta} trazenih mesta i vas ID racuna je: {id.ToString()}"));
+
+                                                }
+                                                break; //da ne ide dalje jer je nasao taj po id
+
+                                            }
+
+                                        }
+                                    }
+                                    else
+                                    {
+                                        acceptedSockets[i].Send(Encoding.UTF8.GetBytes("Uneli ste nevalidan zahtev!"));
+
+                                    }
+
+                                    #endregion
+
+
+                                }
                             }
 
-                            acceptedSockets.Remove(acceptedSockets[i]);
-                            acceptedSockets[i].Close();
-                            Console.ReadKey();
+
 
                         }
+                    }
+
+                    if(off==1)
+                    {
+                        break;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Došlo je do greške, u TCP delu za accepted soket: {ex.Message}");
-                    break;
+                    Console.WriteLine($"Bezveze zahtev: {ex.Message}");
+                    //continue;
                 }
 
                 #endregion

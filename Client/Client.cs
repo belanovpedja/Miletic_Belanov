@@ -164,7 +164,9 @@ namespace Client
                         string kk = Console.ReadLine();
                         if (kk == "OK" || kk == "ok")
                         {
-                            clientSocket.Send(Encoding.UTF8.GetBytes(kk));
+                            Console.WriteLine("Racun potvrdjen, klijent zavrsava sa radom");
+                            Console.ReadKey();
+                            clientSocket.Close();
                             break;
                         }
                         else
@@ -183,9 +185,7 @@ namespace Client
                     // break;
                 }
 
-                Console.WriteLine("Klijent zavrsava sa radom");
-                Console.ReadKey();
-                clientSocket.Close();
+                
 
                 #endregion
             }
