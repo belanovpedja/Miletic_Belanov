@@ -375,7 +375,7 @@ namespace Server
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Bezveze zahtev: {ex.Message}");
+                  //  Console.WriteLine($"Bezveze zahtev: {ex.Message}");
                     //continue;
                 }
 
